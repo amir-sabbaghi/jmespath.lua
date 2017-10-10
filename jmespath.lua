@@ -164,6 +164,9 @@ local Lexer = (function()
     if not tset.operators[token.value] then
       error('Invalid operator: ' .. token.value)
     end
+    if token.value == '!' then
+      token.type = 'not'
+    end
     return token
   end
 
@@ -353,7 +356,8 @@ local Parser = (function()
     ['or']            = 5,
     ['and']           = 6,
     comparator        = 7,
-    flatten           = 8,
+    ['not']           = 8,
+    flatten           = 9,
     star              = 20,
     dot               = 40,
     lbrace            = 50,
@@ -414,6 +418,11 @@ local Parser = (function()
   parselets.nud_expref = function(parser)
     parser:advance()
     return {type = 'expref', children = {expr(parser, bp.expref)}}
+  end
+
+  parselets.nud_not = function(parser)
+    parser:advance()
+    return {type = 'not', children = {expr(parser, bp['not'])}}
   end
 
   local function parse_kvp(parser)
@@ -1195,6 +1204,16 @@ local Interpreter = (function()
 	 return result
       end
       return interpreter:visit(node.children[2], data)
+    end,
+
+    ["not"] = function(interpreter, node, data)
+      local result = interpreter:visit(node.children[1], data)
+      local t = type(result)
+      if not result or result == '' or (t == 'table' and next(result) == nil)
+      then
+	 return true
+      end
+      return false
     end,
 
     pipe = function(interpreter, node, data)
